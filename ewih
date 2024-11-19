@@ -1,0 +1,58 @@
+[1mdiff --git a/app/main.py b/app/main.py[m
+[1mindex 650c440..1dc63cc 100644[m
+[1m--- a/app/main.py[m
+[1m+++ b/app/main.py[m
+[36m@@ -9,6 +9,8 @@[m [mfrom app.config import QR_DIRECTORY[m
+ from app.routers import qr_code, oauth[m
+ from app.services.qr_service import create_directory[m
+ from app.utils.common import setup_logging[m
+[32m+[m[32mfrom app.schema import QRCodeRequest, QRCodeResponse, Link[m
+[32m+[m[32mfrom pydantic import HttpUrl[m
+ [m
+ setup_logging()[m
+ [m
+[36m@@ -31,7 +33,6 @@[m [mapp = FastAPI([m
+         "name": "Apache 2.0",[m
+         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",[m
+     }[m
+[31m-[m
+ )[m
+ [m
+ app.include_router(qr_code.router)[m
+[36m@@ -40,6 +41,34 @@[m [mapp.include_router(oauth.router)[m
+ @app.get("/")[m
+ async def read_root():[m
+     """[m
+[31m-    Message will display[m
+[32m+[m[32m    Root endpoint that displays a welcome message.[m
+[32m+[m[32m    """[m
+[32m+[m[32m    return {"message": "Welcome to the QR Code Manager API"}[m
+[32m+[m
+[32m+[m[32m@app.post("/generate_qr", response_model=QRCodeResponse)[m
+[32m+[m[32masync def generate_qr_code(request: QRCodeRequest):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Generate a QR code based on the request parameters and return the URL[m
+[32m+[m[32m    and related links in the QRCodeResponse format.[m
+     """[m
+[31m-    return {"message":"Welcome to the QR Code Manager API"}[m
+[32m+[m
+[32m+[m[32m    qr_code_url = f"https://example.com/qr/{request.url}"[m
+[32m+[m
+[32m+[m[32m    links = [[m
+[32m+[m[32m        Link([m
+[32m+[m[32m            rel="self",[m
+[32m+[m[32m            href=f"https://api.example.com/qr/{request.url}",[m
+[32m+[m[32m            action="GET"[m
+[32m+[m[32m        ),[m
+[32m+[m[32m        Link([m
+[32m+[m[32m            rel="delete",[m
+[32m+[m[32m            href=f"https://api.example.com/qr/{request.url}",[m
+[32m+[m[32m            action="DELETE"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    ][m
+[32m+[m
+[32m+[m[32m    return QRCodeResponse([m
+[32m+[m[32m        message="QR code created successfully.",[m
+[32m+[m[32m        qr_code_url=HttpUrl(qr_code_url),[m
+[32m+[m[32m        links=links[m
+[32m+[m[32m    )[m
