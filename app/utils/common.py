@@ -1,99 +1,136 @@
-import logging.config
-import os
-import base64
-from typing import List
-from dotenv import load_dotenv
-from jose import jwt
-from datetime import datetime, timedelta
-from app.config import ADMIN_PASSWORD, ADMIN_USER, ALGORITHM, SECRET_KEY
-import validators  # Make sure to install this package
-from urllib.parse import urlparse, urlunparse
+"""
+Module for URL validation, JWT generation, password verification, and URL expiration handling.
 
-# Load environment variables from .env file for security and configuration.
-load_dotenv()
+This module provides functions to:
+- Validate and parse URLs.
+- Generate and validate JWT tokens.
+- Verify passwords.
+- Check if a URL has expired based on timestamp.
+- Encode/decode filename for URL-safe usage.
+- Generate links based on a URL pattern.
+"""
+
+import logging
+from urllib.parse import urlparse,parse_qs
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+import validators
+from app.config import ALGORITHM, SECRET_KEY
 
 def setup_logging():
     """
-    Sets up logging for the application using a configuration file.
-    This ensures standardized logging across the entire application.
+    Set up logging configuration for the application.
     """
-    # Construct the path to 'logging.conf', assuming it's in the project's root.
-    logging_config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'logging.conf')
-    # Normalize the path to handle any '..' correctly.
-    normalized_path = os.path.normpath(logging_config_path)
-    # Apply the logging configuration.
-    logging.config.fileConfig(normalized_path, disable_existing_loggers=False)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
 def authenticate_user(username: str, password: str):
     """
-    Placeholder for user authentication logic.
-    In a real application, replace this with actual authentication against a user database.
+    Authenticate a user based on the provided credentials.
+    Replace this function with a real user validation against a database.
+
+    Args:
+        username (str): The username.
+        password (str): The password.
+
+    Returns:
+        dict: A user object or None if authentication fails.
     """
-    # Simple check against constants for demonstration.
-    if username == ADMIN_USER and password == ADMIN_PASSWORD:
-        return {"username": username}
-    # Log a warning if authentication fails.
-    logging.warning(f"Authentication failed for user: {username}")
+    if username == "admin" and password == "secret":
+        return {"username": "admin"}
     return None
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=1)):
     """
-    Generates a JWT access token. Optionally, an expiration time can be specified.
+    Create a JWT token with the provided data and expiration time.
+
+    Args:
+        data (dict): The payload data to encode into the JWT token.
+        expires_delta (timedelta): The expiration time of the token (default is 1 hour).
+
+    Returns:
+        str: The generated JWT token.
     """
-    # Copy user data and set expiration time for the token.
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
+    expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
-    # Encode the data to create the JWT.
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def validate_and_sanitize_url(url_str):
+def validate_and_parse_url(url: str) -> str:
     """
-    Validates a given URL string and returns a sanitized version if valid.
-    Returns None if the URL is invalid, ensuring only safe URLs are processed.
+    Validates and parses the given URL.
     """
-    if validators.url(url_str):
-        parsed_url = urlparse(url_str)
-        sanitized_url = urlunparse(parsed_url)
-        return sanitized_url
-    else:
-        logging.error(f"Invalid URL provided: {url_str}")
-        return None
+    if not validators.url(url):
+        raise ValueError("Invalid URL format")
+    parsed_url = urlparse(url)
+    return parsed_url.geturl()
 
-def encode_url_to_filename(url):
+def generate_jwt_token(payload: dict) -> str:
     """
-    Encodes a URL into a base64 string safe for filenames, after validating and sanitizing.
-    Removes padding to ensure filename compatibility.
+    Generates a JWT token.
     """
-    sanitizd_url = validate_and_sanitize_url(str(url))
-    if sanitized_url is None:
-        raise ValueError("Provided URL is invalid and cannot be encoded.")
-    encoded_bytes = base64.urlsafe_b64encode(sanitized_url.encode('utf-8'))
-    encoded_str = encoded_bytes.decode('utf-8').rstrip('=')
-    return encoded_str
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def decode_filename_to_url(encoded_str: str) -> str:
+def validate_jwt_token(token: str) -> dict:
     """
-    Decodes a base64 encoded string back into a URL, adding padding if necessary.
-    This reverses the process done by `encode_url_to_filename`.
+    Validates the JWT token.
     """
-    padding_needed = 4 - (len(encoded_str) % 4)
-    if padding_needed:
-        encoded_str += "=" * padding_needed
-    decoded_bytes = base64.urlsafe_b6decode(encoded_str)
-    return decoded_bytes.decode('utf-8')
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError as e:
+        raise ValueError(f"Invalid token: {e}") from e
 
-def generate_links(action: str, qr_filename: str, base_api_url: str, download_url: str) -> List[dict]:
+def verify_password(stored_password: str, input_password: str) -> bool:
     """
-    Generates HATEOAS links for QR code resources, including view and delete actions.
-    This supports the application's RESTful architecture by providing links to possible actions.
+    Verifies the password.
     """
-    links = []
-    if action in ["list", "create"]:
-        original_url = decode_filename_to_url(qr_filename[:-4])
-        links.append({"rel": "view", "href": download_url, "action": "GET", "type": "image/png"})
-    if action in ["list", "create", "delete"]:
-        delete_url = f"{base_api_url}/qr-codes/{qr_filename}"
-        links.append({"rel": "delete", "href": delete_url, "action": "DELETE", "type": "application/json"})
-    return links
+    return stored_password == input_password
+
+def is_url_expired(url: str, expiration_time: int = 3600) -> bool:
+    """
+    Checks if the URL has expired based on the given expiration time.
+    """
+    current_time = datetime.utcnow()
+    expiration_delta = timedelta(seconds=expiration_time)
+    parsed_url = urlparse(url)
+    try:
+        timestamp = int(parse_qs(parsed_url.query).get("timestamp", ["0"])[0])
+    except ValueError as exc:
+        raise ValueError("Invalid timestamp in URL query") from exc
+
+    expiration_datetime = datetime.utcfromtimestamp(timestamp) + expiration_delta
+    return current_time > expiration_datetime
+
+def decode_filename_to_url(filename: str) -> str:
+    """
+    Decodes a filename to a URL-safe format.
+    """
+    return filename.replace('_', '/').replace('-', '+')
+
+def encode_url_to_filename(url: str) -> str:
+    """
+    Encodes a URL into a filename-safe format.
+    """
+    url_str = str(url)
+    return url_str.replace('/', '_').replace('+', '-')
+
+def generate_links(filename: str, base_url: str, download_url: str):
+    """
+    Generates HATEOAS (Hypermedia as the Engine of Application State) links for the given resource.
+
+    Args:
+        filename (str): The name of the file for which links are generated.
+        base_url (str): The base URL of the server.
+        download_url (str): The specific download URL for the file.
+
+    Returns:
+        dict: A dictionary containing HATEOAS links.
+    """
+    return {
+        "self": f"{base_url}/qr-codes/{filename}",
+        "download": download_url,
+        "delete": f"{base_url}/qr-codes/{filename}/delete"
+    }
