@@ -1,22 +1,19 @@
-name: Production Deployment
+name: Python application
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.x'
+        python-version: 3.9
 
     - name: Install dependencies
       run: |
@@ -26,7 +23,3 @@ jobs:
     - name: Run tests
       run: |
         pytest
-
-    - name: Deploy to Production
-      run: |
-        echo "Deploying to production..."
