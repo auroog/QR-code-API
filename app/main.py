@@ -5,12 +5,12 @@ managing QR codes and handling OAuth authentication.
 """
 
 from fastapi import FastAPI
+from pydantic import HttpUrl
 from app.config import QR_DIRECTORY
 from app.routers import qr_code, oauth
 from app.services.qr_service import create_directory
 from app.utils.common import setup_logging
 from app.schema import QRCodeRequest, QRCodeResponse, Link
-from pydantic import HttpUrl
 
 setup_logging()
 

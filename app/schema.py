@@ -47,22 +47,10 @@ class Link(BaseModel):
     """
     Schema for a hyperlink with details for the relation type, URL, and HTTP method.
     """
-    rel: str = Field(
-        ...,
-        description="Relation type of the link."
-    )
-    href: HttpUrl = Field(
-        ...,
-        description="The URL of the link."
-    )
-    action: str = Field(
-        ...,
-        description="HTTP method for the action this link represents."
-    )
-    type: str = Field(
-        default="application/json",
-        description="Content type of the response for this link."
-    )
+    rel: str
+    href: HttpUrl
+    action: str
+    type: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """
@@ -84,18 +72,9 @@ class QRCodeResponse(BaseModel):
     Schema for the response returned after generating a QR code.
     Includes a message, the URL of the generated QR code, and related links.
     """
-    message: str = Field(
-        ...,
-        description="A message related to the QR code request."
-    )
-    qr_code_url: HttpUrl = Field(
-        ...,
-        description="The URL to the generated QR code."
-    )
-    links: List[Link] = Field(
-        default=[],
-        description="HATEOAS links related to the QR code."
-    )
+    message: str
+    qr_code_url: HttpUrl
+    links: List[Link] = []
 
     class Config:  # pylint: disable=too-few-public-methods
         """

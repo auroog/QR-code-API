@@ -47,11 +47,13 @@ async def create_qr_code(request: QRCodeRequest, token: str = Depends(oauth2_sch
     )
 
     # Generate HATEOAS links for this resource
-    links = generate_links(
-        filename=qr_filename,
-        base_url=SERVER_BASE_URL,
-        download_url=qr_code_download_url
-    )
+    links = [
+        generate_links(
+            filename=qr_filename,
+            base_url=SERVER_BASE_URL,
+            download_url=qr_code_download_url
+        )
+    ]
 
     # Check if the QR code already exists
     if qr_code_full_path.exists():
